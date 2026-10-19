@@ -96,14 +96,25 @@ def main():
             },
         )
 
-        for step in response.steps:
-            if step.type != "function_call":
-                continue
+        function_call = next(
+            (
+                step
+                for step in response.steps
+                if step.type == "function_call"
+            ),
+            None,
+        )
 
-        print("Function requested:", step.name)
-        print("Arguments received:", step.arguments)
+        if function_call is None:
+            raise RuntimeError("Gemini did not request a function call.")
 
-        result = execute_tool(step.name, step.arguments)
+        print("Function requested:", function_call.name)
+        print("Arguments received:", function_call.arguments)
+
+        result = execute_tool(
+            function_call.name,
+            function_call.arguments,
+        )
         print("Calculator result:", result)
 
         final_interaction = client.interactions.create(
@@ -113,8 +124,8 @@ def main():
             input=[
                 {
                     "type": "function_result",
-                    "name": step.name,
-                    "call_id": step.id,
+                    "name": function_call.name,
+                    "call_id": function_call.id,
                     "result": [
                         {"type": "text", "text": str(result)}
                     ],
@@ -125,6 +136,7 @@ def main():
         print("Gemini's final answer:")
         print(final_interaction.output_text)
 
+       
     except (ValueError, TypeError) as error:
         print(f"Tool execution failed: {error}")
 
